@@ -759,20 +759,6 @@ size_t libkdump_virt_to_phys_kernel_module(size_t virtual_address) {
 }
 
 // ---------------------------------------------------------------------------
-void *libkdump_remap(void *virt, size_t phys)
-{
-	int ret;
-	printf("%p remapped to %lx\n", virt, phys);
-	snprintf(buffer, sizeof(buffer), "%d %lx", 5, (size_t)virt);
-	ret = write(setexec, buffer, strlen(buffer));
-	snprintf(buffer, sizeof(buffer), "%d %lx", 6, phys);
-	ret = write(setexec, buffer, strlen(buffer));
-	printf("%p remapped to %lx\n", virt, phys);
-
-	return (void *)((((size_t)virt >> 12) << 12) | phys & ((1UL << 12) -1));
-}
-
-// ---------------------------------------------------------------------------
 int set_reserved_bit(size_t addr) {
 	snprintf(buffer, sizeof(buffer), "%d %lx", 3, addr);
 	return write(setexec, buffer, strlen(buffer));

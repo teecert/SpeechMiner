@@ -12,8 +12,6 @@
 #include <asm/cpufeature.h>
 #include <linux/slab.h>
 
-#include <linux/exception_monitor.h>
-
 #include <asm/page.h>
 #include <asm/page_types.h>
 
@@ -584,7 +582,6 @@ ssize_t my_proc_write(struct file *file, const char __user *buffer, size_t count
 {
   char buf[80];
   char start[40];
-  //printk("%s %lu", buffer, count);
   if (count < 1)
     return -EINVAL;  
   if (copy_from_user(buf, buffer, count)) {
@@ -592,10 +589,8 @@ ssize_t my_proc_write(struct file *file, const char __user *buffer, size_t count
   }
 
   buf[count] = '\0';
-  // printk("Input: %s\n", buf);
 
   strcpy(start, buf);
-  // printk("Start[1] = \'%c\', start[2] = \'%c\'\n", start[1], start[2]);
   if (start[1] == ' ' || start[1] == '\0') {
     start[1] = '\0'; // start is the first digit of input
     kstrtol(start, 16, &mode);
@@ -611,38 +606,22 @@ ssize_t my_proc_write(struct file *file, const char __user *buffer, size_t count
   switch(mode) {
     case 0:
       native_flush_tlb();
-      // printk("[!]All TLB flushed.\n");
       break;
     case 1:
-      kstrtoul(buf+2, 16, &address);
-      // printk("SetExec %lx\n", address);
-      // flush_tlb_single(address);
-      // native_flush_tlb();
-      set_victim(address, monitor_victim_pages);
-      monitor_victim_pages ^= 1;
-      set_xd(address);
       native_flush_tlb();
       break;
     case 2:
       kstrtoul(buf+2, 16, &address);
-      // printk("Accessing %lx\n", address);
-      // setexec(address);
       asm volatile("movq (%0), %%rax\n" : : "c"(address) : "rax");
       break;
     case 3:
       kstrtoul(buf+2, 16, &address);
-      // printk("Set reserved bit %lx\n", address);
-      set_victim(address, monitor_victim_pages);
-      monitor_victim_pages ^= 1;
       set_reserved(address);
-      // flush_tlb_single(address);
       native_flush_tlb();
       break;
     case 4:
       kstrtoul(buf+2, 16, &address);
-      // printk("vaddr = %lx\n", address);
       size_t paddr = translate(address);
-      // printk("paddr = %lx\n", paddr);
       return paddr;
       break;
     case 5:
@@ -661,28 +640,22 @@ ssize_t my_proc_write(struct file *file, const char __user *buffer, size_t count
       // address is the address
       // call #4 first to set address
       kstrtoul(buf+2, 16, &p_address);
-      // printk("Set physical address %lx\n", address);
       set_pkey(address, (int)p_address);
       break;
     case 7:
       kstrtoul(buf+2, 16, &address);
-      // printk("Set reserved bit %lx\n", address);
       set_present(address);
-      // flush_tlb_single(address);
       native_flush_tlb();
       break;
     case 8:
       kstrtoul(buf+2, 16, &address);
-      // printk("Set reserved bit %lx\n", address);
       set_rw(address);
-      // flush_tlb_single(address);
       native_flush_tlb();
       break;
     case 9:
       kstrtoul(buf+2, 16, &address);
-      // printk("Set reserved bit %lx\n", address);
-      set_us(address);
-      // flush_tlb_single(address);
+      set_xd(address);
+      // set_us(address);
       native_flush_tlb();
       break;
     case 0xa:
@@ -697,9 +670,7 @@ ssize_t my_proc_write(struct file *file, const char __user *buffer, size_t count
       break;
     case 0xc:
       kstrtoul(buf+2, 16, &address);
-      // printk("Set reserved bit %lx\n", address);
       set_cacheable(address);
-      // flush_tlb_single(address);
       native_flush_tlb();
       break;
     case 0xd:
@@ -711,7 +682,6 @@ ssize_t my_proc_write(struct file *file, const char __user *buffer, size_t count
       native_MP_set(mp);
       fpu_lazy_switch_simulate();
       native_check_TS();
-      // printk("Set TS=%d, MP=%d\n", ts, mp);
       break;
     case 0xf:
       kstrtoul(buf+2, 16, &p_address); // this is the legal address
