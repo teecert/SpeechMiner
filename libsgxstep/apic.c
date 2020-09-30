@@ -24,7 +24,7 @@
 #include "sched.h"
 #include <fcntl.h>
 #include <sys/ioctl.h>
-#include "../kernel/sgxstep_ioctl.h"
+#include "../kernel_sgxstep/sgxstep_ioctl.h"
 
 extern int fd_step;
 void *apic_base = NULL;

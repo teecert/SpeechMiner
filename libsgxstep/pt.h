@@ -23,7 +23,7 @@
 
 #include <stdint.h>
 #include <inttypes.h>
-#include "../kernel/sgxstep_ioctl.h"
+#include "../kernel_sgxstep/sgxstep_ioctl.h"
 
 // Returns a mask of the form:
 // +----- n+1 -+- n --------- 0-+

