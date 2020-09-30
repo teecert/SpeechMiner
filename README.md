@@ -6,7 +6,25 @@ SpeechMiner is an open-source tool framework to analyze speculative execution si
 
 The framework contains a few page table manipulation components from [SGX-STEP](https://github.com/jovanbulck/sgx-step). 
 
-To build the tool framework, part of the [SGX-STEP](https://github.com/jovanbulck/sgx-step) toolset needs to be built. The related code is extracted to `libsgxstep` directory and `kernel_sgxstep` directory. `kernel_sgxstep` in fact includes the kernel module used by libsgxstep. Due to extra dependency over linux-sgx-driver, it is recommended to be built following the guideline of [SGX-STEP](https://github.com/jovanbulck/sgx-step). To build `libsgxstep`, perform
+To build the tool framework, part of the [SGX-STEP](https://github.com/jovanbulck/sgx-step) toolset needs to be built. The related code is extracted to `libsgxstep` directory and `kernel_sgxstep` directory. `kernel_sgxstep` includes the kernel module used by libsgxstep. Due to extra dependency over linux-sgx-driver, please download and build the [Linux SGX Driver](https://github.com/intel/linux-sgx-driver).
+```
+git clone https://github.com/intel/linux-sgx-driver.git
+cd linux-sgx-driver
+sudo apt-get install linux-headers-$(uname -r)
+make
+sudo mkdir -p "/lib/modules/"`uname -r`"/kernel/drivers/intel/sgx"    
+sudo cp isgx.ko "/lib/modules/"`uname -r`"/kernel/drivers/intel/sgx"    
+sudo sh -c "cat /etc/modules | grep -Fxq isgx || echo isgx >> /etc/modules"    
+sudo /sbin/depmod
+sudo /sbin/modprobe isgx
+```
+Afterwards, build `kernel_sgxstep`.
+```
+cd kernel_sgxstep
+make
+```
+
+To build `libsgxstep`, perform
 ```
 cd libsgxstep
 make

