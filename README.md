@@ -70,9 +70,7 @@ sudo ./new_physical_reader_test_smap
 
 [SPEECHMINER: A Framework for Investigating and Measuring Speculative Execution Vulnerabilities](https://www.ndss-symposium.org/ndss-paper/speechminer-a-framework-for-investigating-and-measuring-speculative-execution-vulnerabilities/)
 
-[Yuan Xiao](http://web.cse.ohio-state.edu/~xiao.465/), [Yinqian Zhang](http://yinqian.org/), [Mircea-Radu Teodorescu](http://web.cse.ohio-state.edu/~teodorescu.1/)
-
-Network and Distributed System Security Symposium (NDSS), San Diego, CA, USA, Feb. 2020.
+[Yuan Xiao](http://web.cse.ohio-state.edu/~xiao.465/), [Yinqian Zhang](http://yinqian.org/), [Mircea-Radu Teodorescu](http://web.cse.ohio-state.edu/~teodorescu.1/), Network and Distributed System Security Symposium (NDSS), San Diego, CA, USA, Feb. 2020.
 
 
 
