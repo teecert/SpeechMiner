@@ -1,6 +1,6 @@
 # SpeechMiner
 
-SpeechMiner is an open-source tool framework to analyze speculative execution side-channel vulnerabilities. Refer to [our NDSS'20 paper](https://www.ndss-symposium.org/ndss-paper/speechminer-a-framework-for-investigating-and-measuring-speculative-execution-vulnerabilities/) for more details. The vulnerability scanning part of SpeechMiner is open to public. The quantitative hardware analysis part is to appear.
+SpeechMiner is an open-source framework for analyzing Meltdown-like speculative execution side-channel vulnerabilities. Refer to [our NDSS'20 paper](https://www.ndss-symposium.org/ndss-paper/speechminer-a-framework-for-investigating-and-measuring-speculative-execution-vulnerabilities/) for more details.
 
 ## Build Kernel Modules and SGX-STEP Components
 
@@ -65,3 +65,14 @@ To perform tests, simply execute the generated executables. For example, to test
 ```
 sudo ./new_physical_reader_test_smap
 ```
+
+## Reference
+
+[SPEECHMINER: A Framework for Investigating and Measuring Speculative Execution Vulnerabilities](https://www.ndss-symposium.org/ndss-paper/speechminer-a-framework-for-investigating-and-measuring-speculative-execution-vulnerabilities/)
+
+[Yuan Xiao](http://web.cse.ohio-state.edu/~xiao.465/), [Yinqian Zhang](http://yinqian.org/), [Mircea-Radu Teodorescu](http://web.cse.ohio-state.edu/~teodorescu.1/)
+
+Network and Distributed System Security Symposium (NDSS), San Diego, CA, USA, Feb. 2020.
+
+
+
